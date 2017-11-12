@@ -97,17 +97,14 @@ public class SilhouetteTest extends JFrame {
       if (showCmds.isSelected()) {
         usb.setDebug(text);
       }
-      usb.send("FG\u0003".getBytes());               // Query Version String
-      byte[] rsp = usb.receive();
-      String vers = (new String(rsp)).substring(0, rsp.length - 1).trim();
-      text.append("Cutter: " + vers + "\n");
-      doWait();
-      // The Curio powers up in what I see as Landscape mode in which the left/right movement of the cutting
-      // head is the X axis and the in/out movement of the tray is the Y axis.  However, I have to reverse
-      // the order of the X and Y values in the draw and move commands to make the Curio work this way, so
-      // I've coded accordingly.  Likewise, the code for getCoords() is likewise reversed and can be called
-      // to get the size of the workspace reported as two points for upper left and lower right with x=0,y=0
-      // being the position with head to the left and positioned to the rear of the tray.
+      text.append("Cutter: " + getVersionString() + "\n");
+      usb.send("FN0\u0003".getBytes());               // Set landscape mode
+      // When the Curio is set to what I consider Landscape mode in which the left/right movement of the cutting
+      // head is the X axis and the in/out movement of the tray is the Y axis.  However, I have to reverse the
+      // order of the X and Y values in the draw and move commands to make the Curio work this way, so I've coded
+      // accordingly.  Likewise, the code for getCoords() is likewise reversed and can be called to get the size
+      // of the workspace reported as two points for upper left and lower right with x = 0,y = 0 being the position
+      // with cutting head to the left and positioned to the rear of the tray.
       Point ul = getCoord("[\u0003");
       Point lr = getCoord("U\u0003");
       text.append("Workspace: x1 = " + ul.x + ", y1 = " + ul.y + ", x2 = " + lr.x + ", y2 = " + lr.y + "\n");
@@ -123,21 +120,20 @@ public class SilhouetteTest extends JFrame {
       print(usb.receive());
       usb.send("FY0\u0003".getBytes());               // "FY1" for track enhance, else "FN0" for none
       print(usb.receive());
-      usb.send("FN0\u0003".getBytes());               // "FN1" for Landscape, else "FN0" for Portrait mode
+      usb.send("FN0\u0003".getBytes());               // "FN0" for Landscape, else "FN1" for Portrait mode
       print(usb.receive());
       usb.send("SO0\u0003".getBytes());               // Set Origin 0 (Not sure what this does)
       print(usb.receive());
       */
-      usb.send("H\u0003".getBytes());                 // Move to Home Position
-      doWait();
+      moveHome();
       if (moveTest.isSelected()) {
         text.append("Do Move Test\n");
         // Move around the perimeter of the full cutting area (8.5 x 6 inches) inset by 500 units
         // Note: move speed seems to be equal to draw speed set to 10 ("!10")
         for (int ii = 0; ii < 1; ii++) {
-          moveTo(lr.x - 1500, ul.y + 500);
-          moveTo(lr.x - 1500, lr.y - 1500);
-          moveTo(ul.x + 500, lr.y - 1500);
+          moveTo(lr.x - 500, ul.y + 500);
+          moveTo(lr.x - 500, lr.y - 500);
+          moveTo(ul.x + 500, lr.y - 500);
           moveTo(ul.x + 500, ul.y + 500);
         }
       }
@@ -195,8 +191,7 @@ public class SilhouetteTest extends JFrame {
         }
       }
       text.append("Return to Home Position\n");
-      usb.send("H\u0003".getBytes());                 // Move to Home Position
-      doWait();
+      moveHome();
     } catch (Exception ex) {
       text.append(ex.getMessage() + "\n");
       ex.printStackTrace();
@@ -234,6 +229,17 @@ public class SilhouetteTest extends JFrame {
     setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
     pack();
     setVisible(true);
+  }
+
+  private void moveHome () {
+    usb.send("H\u0003".getBytes());                 // Move to Home Position
+    doWait();
+  }
+
+  private String getVersionString() {
+    usb.send("FG\u0003".getBytes());               // Query Version String
+    byte[] rsp = usb.receive();
+    return (new String(rsp)).substring(0, rsp.length - 1).trim();
   }
 
   /**
