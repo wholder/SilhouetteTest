@@ -13,11 +13,11 @@ I have another project called [**LaserCut**](https://github.com/wholder/LaserCut
 - [Usb4Java](http://usb4java.org) - Usb4Java Project Page
 - [JavaDocs](http://usb4java.org/apidocs/index.html) - Usb4Java JavaDocs
 #### Information Wanted
-If anyone owns a Mac and any of the other Silhouette cutters, such as the Cameo (original, V2 or V3), Portrait, etc., you can help me determine the USB I/O parameters for these other cutters using SilhouetteTest.  There is a [**Runnable JAR file**](https://github.com/wholder/SilhouetteTest/tree/master/out/artifacts/SilhouetteTest_jar) included in the checked in code that you can download.  Just double click the SilhouetteTest.jar file and it should start and display a window like the one shown near the top of this page.  Note: you may have to select the SilhouetteTest.jar file, right click and select "Open" the first time you run the file to satisfy Mac OS' security checks.  Then, select "Run Scan" and click the "RUN" button.  If it can identify a Silhouette-made device, it will display text like this:
+If anyone owns a Mac and any of the other Silhouette cutters, such as the Cameo (original, V2 or V3), Portrait, etc., you can help me determine the USB I/O parameters for these other cutters using SilhouetteTest.  There is a [**Runnable JAR file**](https://github.com/wholder/SilhouetteTest/tree/master/out/artifacts/SilhouetteTest_jar) included in the checked in code that you can download.  Just double click the SilhouetteTest.jar file and it should start and display a window like the one shown near the top of this page.  Note: you may have to select the SilhouetteTest.jar file, right click and select "Open" the first time you run the file to satisfy Mac OS' security checks.  Then, select "Run Scan" and click the "RUN" button.  If it can identify a Silhouette-made device (vendor id == 0x0B4D), it will display text like this:
 
       Bus: 000 Device 027: Vendor 0x0B4D, Product 0x112C
         Interface: 0
           BLK add: 0x01 (OUT) pkt: 64
           BLK add: 0x82 (IN)  pkt: 64
 
-Please copy this text, along with the full model name and version of your device, and post it in the Wiki Section listed above.
+Please copy all of this text, along with the full Model Name and Version of the Silhouette device tested, and post it in a comment in the Wiki Section listed above.
