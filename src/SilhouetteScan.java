@@ -29,7 +29,7 @@ class SilhouetteScan {
         short vendor = descriptor.idVendor();
         if (!"hub".equalsIgnoreCase(usbClass) && vendor == (short) 0x0B4D) {
           deviceFound = true;
-          text.append(String.format("Bus: %03d Device %03d: Vendor %04x, Product %04x%n",
+          text.append(String.format("Bus: %03d Device 0x%03d: Vendor 0x%04X, Product %04X%n",
               busNumber, address, vendor, descriptor.idProduct()));
           for (byte ii = 0; ii < numConfigs; ii++) {
             ConfigDescriptor cDesc = new ConfigDescriptor();
@@ -50,7 +50,7 @@ class SilhouetteScan {
                       String[] tTypes = {"CON", "ISO", "BLK", "INT"};
                       String tType = tTypes[eAttr & 0x03];
                       String dir = (endAdd & 0x80) != 0 ? " (IN) " : " (OUT)";
-                      text.append("    " + tType + " add: " + String.format("%02x", endAdd) + dir + " pkt: " + maxPkt + "\n");
+                      text.append("    " + tType + " add: " + String.format("0x%02X", endAdd) + dir + " pkt: " + maxPkt + "\n");
                     }
                   }
                 }

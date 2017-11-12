@@ -6,7 +6,7 @@ import java.nio.ByteOrder;
 import java.nio.IntBuffer;
 
 /**
- *  Implements a bulk tranfer I/O driver that uses usb4java to communicate with a USB Device
+ *  Implements a bulk transfer I/O driver that uses usb4java to communicate with a USB Device
  *  such as a Silhouette Curio, Cameo or Portrait using the Usb4Java Library.
  *
  *  See: http://usb4java.org, and http://usb4java.org/apidocs/index.html for more info
@@ -68,18 +68,10 @@ class USBIO {
         buf.append((char) cc);
       } else {
         buf.append("\\u00");
-        buf.append(toHex(cc));
+        buf.append(String.format("0x%02X", cc));
       }
     }
     debug.append(buf.toString() + "\n");
-  }
-
-  String toHex (int val) {
-    if (val < 0x10) {
-      return "0" + Integer.toHexString(val).toUpperCase();
-    } else {
-      return Integer.toHexString(val).toUpperCase();
-    }
   }
 
   void send (byte[] data) {

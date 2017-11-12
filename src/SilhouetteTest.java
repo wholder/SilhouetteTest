@@ -1,5 +1,3 @@
-import org.usb4java.*;
-
 import javax.swing.*;
 import java.awt.*;
 import java.util.LinkedList;
