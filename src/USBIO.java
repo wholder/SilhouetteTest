@@ -74,7 +74,7 @@ class USBIO {
     debug.append(buf.toString() + "\n");
   }
 
-  private String toHex (int val) {
+  String toHex (int val) {
     if (val < 0x10) {
       return "0" + Integer.toHexString(val).toUpperCase();
     } else {
