@@ -331,6 +331,7 @@ public class SilhouetteTest extends JFrame {
       throw new LibUsbException("Unable to get device list", result);
     }
     try {
+      boolean deviceFound = false;
       for (Device device : list) {
         int address = LibUsb.getDeviceAddress(device);
         int busNumber = LibUsb.getBusNumber(device);
@@ -372,6 +373,9 @@ public class SilhouetteTest extends JFrame {
             }
           }
         }
+      }
+      if (!deviceFound) {
+        text.append("No Silhouette devices detected");
       }
     } catch (Exception ex) {
       text.append(ex.getMessage());
