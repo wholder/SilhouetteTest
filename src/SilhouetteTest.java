@@ -196,6 +196,8 @@ public class SilhouetteTest extends JFrame {
     super("SilhouetteTest");
     text.setColumns(50);
     text.setRows(30);
+    text.setFont(new Font("Monaco", Font.PLAIN, 12));
+    text.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
     JScrollPane scroll = new JScrollPane(text, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
     add(scroll, BorderLayout.CENTER);
     JPanel panel = new JPanel(new GridLayout(1, 6, 2, 2));
