@@ -35,10 +35,6 @@ import java.util.List;
  *
  *   Curio Small Cutting Bed is 8.5 x 6 inches, or 4318 x 3048 units
  *     or 508 units/inch, or 20 units/mm (after power up in landscape mode)
- *
- *   Speed: value of 1-10 is multiplied by 10 to get speed in centimeters/second
- *   Pressure/Thickness: value of 1-33 is multiplied by 7 to get grams of force (7-230)
- *   Track enhancement: rolls material in and out several times to emboss grip rollers (not used with Curio)
  */
 
 public class SilhouetteTest extends JFrame {
@@ -105,14 +101,20 @@ public class SilhouetteTest extends JFrame {
       byte[] rsp = usb.receive();
       String vers = (new String(rsp)).substring(0, rsp.length - 1).trim();
       text.append("Cutter: " + vers + "\n");
-      // Get dimensions of work space as reported by the device as two points, upper left and lower right.
-      // Note: the Curio powers up in Landscape mode, which flips the way I see the X and Y axes. so, I have
-      // reversed them in the code so the origin is the home position, left/right is X, and base in/out is Y.
+      doWait();
+      // The Curio powers up in what I see as Landscape mode in which the left/right movement of the cutting
+      // head is the X axis and the in/out movement of the tray is the Y axis.  However, I have to reverse
+      // the order of the X and Y values in the draw and move commands to make the Curio work this way, so
+      // I've coded accordingly.  Likewise, the code for getCoords() is likewise reversed and can be called
+      // to get the size of the workspace reported as two points for upper left and lower right with x=0,y=0
+      // being the position with head to the left and positioned to the rear of the tray.
       Point ul = getCoord("[\u0003");
       Point lr = getCoord("U\u0003");
       text.append("Workspace: x1 = " + ul.x + ", y1 = " + ul.y + ", x2 = " + lr.x + ", y2 = " + lr.y + "\n");
       /*
-      Commands I still haven't completely figured out how to use
+      Commands I still haven't completely figured out how to use.  Supposedly:
+        Pressure/Thickness: value of 1-33 is multiplied by 7 to get grams of force (7-230)
+        Track enhancement: rolls material in and out several times to emboss grip rollers (not used with Curio)
       usb.send("FW300\u0003".getBytes());             // Media (paper type) (100-138, or 300)
       print(usb.receive());
       usb.send("FX15\u0003".getBytes());              // Pressure (1-33)
@@ -133,13 +135,13 @@ public class SilhouetteTest extends JFrame {
         // Move around the perimeter of the full cutting area (8.5 x 6 inches) inset by 500 units
         // Note: move speed seems to be equal to draw speed set to 10 ("!10")
         for (int ii = 0; ii < 1; ii++) {
-          moveTo(lr.x - 500, ul.y + 500);
-          moveTo(lr.x - 500, lr.y - 500);
-          moveTo(ul.x + 500, lr.y - 500);
+          moveTo(lr.x - 1500, ul.y + 500);
+          moveTo(lr.x - 1500, lr.y - 1500);
+          moveTo(ul.x + 500, lr.y - 1500);
           moveTo(ul.x + 500, ul.y + 500);
         }
       }
-      drawSpeed(6);
+      setDrawSpeed(6);
       if (drawTest.isSelected()) {
         text.append("Do Draw Test\n");
         doWait();
@@ -147,12 +149,12 @@ public class SilhouetteTest extends JFrame {
           text.append("  Draw with Pen " + pen + "\n");
           selectPen(pen);
           // Build one command string to draw around the perimeter of the cutting area inset by 500 units
-          StringBuilder draw = new StringBuilder("D");
-          draw.append(getDrawCoords(lr.x - 500, ul.y + 500, ","));
-          draw.append(getDrawCoords(lr.x - 500, lr.y - 500, ","));
-          draw.append(getDrawCoords(ul.x + 500, lr.y - 500, ","));
-          draw.append(getDrawCoords(ul.x + 500, ul.y + 500, "\u0003"));
-          usb.send(draw.toString().getBytes());
+          String draw = "D" +
+          formatDrawCoords(lr.x - 500, ul.y + 500, ",") +
+          formatDrawCoords(lr.x - 500, lr.y - 500, ",") +
+          formatDrawCoords(ul.x + 500, lr.y - 500, ",") +
+          formatDrawCoords(ul.x + 500, ul.y + 500, "\u0003");
+          usb.send(draw.getBytes());
           doWait();
         }
       }
@@ -180,16 +182,16 @@ public class SilhouetteTest extends JFrame {
           Point p3 = new Point(xLoc + radius, yLoc);
 
           moveTo(xLoc + radius, yLoc);
-          StringBuilder draw = new StringBuilder("WP");
-          draw.append(getDrawCoords(p1, ","));
-          draw.append(getDrawCoords(p2, ","));
-          draw.append(getDrawCoords(p3, "\u0003"));
-          usb.send(draw.toString().getBytes());
+          String draw = "WP" +
+          formatDrawCoords(p1, ",") +
+          formatDrawCoords(p2, ",") +
+          formatDrawCoords(p3, "\u0003");
+          usb.send(draw.getBytes());
           doWait();
 
-          //drawCross(p1);
-          //drawCross(p2);
-          //drawCross(p3);
+          //drawPlusMark(p1);
+          //drawPlusMark(p2);
+          //drawPlusMark(p3);
         }
       }
       text.append("Return to Home Position\n");
@@ -218,7 +220,7 @@ public class SilhouetteTest extends JFrame {
     panel.add(moveTest = new JCheckBox("Move Test", true));
     panel.add(drawTest = new JCheckBox("Draw Test", false));
     panel.add(miscTest = new JCheckBox("Misc Test", false));
-    panel.add(showCmds = new JCheckBox("Show Cmds", false));
+    panel.add(showCmds = new JCheckBox("Show I/O", false));
     select = new JComboBox<>(cutters.toArray(new Cutter[cutters.size()]));
     panel.add(select);
     JButton run = new JButton("RUN");
@@ -234,7 +236,11 @@ public class SilhouetteTest extends JFrame {
     setVisible(true);
   }
 
-  private void drawSpeed (int speed) {
+  /**
+   * Sets the speed where the input value times 10 is centimeters/second
+   * @param speed parameter range 1 - 10
+   */
+  private void setDrawSpeed (int speed) {
     speed = Math.max(Math.min(speed, 1), 10);               // Range is 1-10
     usb.send(("!" + speed + "\u0003").getBytes());
   }
@@ -259,23 +265,23 @@ public class SilhouetteTest extends JFrame {
   }
 
   private void drawTo (int xLoc, int yLoc) {
-    usb.send(("D" + getDrawCoords(xLoc, yLoc, "\u0003")).getBytes());
+    usb.send(("D" + formatDrawCoords(xLoc, yLoc, "\u0003")).getBytes());
     doWait();
   }
 
-  private String getDrawCoords (Point pnt, String end) {
-    return getDrawCoords(pnt.x, pnt.y, end);
+  private String formatDrawCoords (Point pnt, String end) {
+    return formatDrawCoords(pnt.x, pnt.y, end);
   }
 
-  private String getDrawCoords (int xLoc, int yLoc, String end) {
+  private String formatDrawCoords (int xLoc, int yLoc, String end) {
     return yLoc + "," + xLoc + end;
   }
 
-  private void drawCross (Point pnt) {
-    drawCross(pnt.x, pnt.y);
+  private void drawPlusMark (Point pnt) {
+    drawPlusMark(pnt.x, pnt.y);
   }
 
-  private void drawCross (int xLoc, int yLoc) {
+  private void drawPlusMark (int xLoc, int yLoc) {
     int size = 20;              // Cross is +/- 1 mm
     moveTo(xLoc - size, yLoc);
     drawTo(xLoc + size, yLoc);
@@ -307,7 +313,7 @@ public class SilhouetteTest extends JFrame {
   }
 
   /**
-   * Waits until current movement, or draw command is complete
+   * Waits until move or draw command is complete and motion is stopped
    */
   private void doWait () {
     JTextArea save = usb.getDebug();

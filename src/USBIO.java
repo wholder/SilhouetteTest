@@ -61,8 +61,9 @@ class USBIO {
     return debug;
   }
 
-  private void debugPrint (byte[] data) {
-    StringBuilder buf = new StringBuilder();
+  void debugPrint (String prefix, byte[] data) {
+    StringBuilder buf = new StringBuilder(prefix);
+    buf.append("\"");
     for (byte cc : data) {
       if (cc >= 0x20) {
         buf.append((char) cc);
@@ -71,12 +72,12 @@ class USBIO {
         buf.append(String.format("0x%02X", cc));
       }
     }
-    debug.append(buf.toString() + "\n");
+    debug.append(buf.toString() + "\"\n");
   }
 
   void send (byte[] data) {
     if (debug != null) {
-      debugPrint(data);
+      debugPrint("Snd: ", data);
     }
     ByteBuffer outBuf = BufferUtils.allocateByteBuffer(data.length);
     outBuf.put(data);
@@ -104,6 +105,9 @@ class USBIO {
           data[ii] = inBuf.get();
         }
         inBuf.clear();
+        if (debug != null) {
+          debugPrint("Rec: ", data);
+        }
         return data;
       }
     }
