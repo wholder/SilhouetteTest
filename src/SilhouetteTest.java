@@ -173,6 +173,7 @@ public class SilhouetteTest extends JFrame {
         }
       }
       if (circleTest.isSelected()) {
+        text.append("Draw 4 inch diameter circle\n");
         // Draw Bezier Circle
         usb.send(("BZ0,508.20,2011.90,508.06,2018.58,508,2025.28,508,2032,0" + "\u0003").getBytes());
         usb.send(("BZ1,508,2032,508,2592.62,963.38,3048,1524,3048,0" + "\u0003").getBytes());
