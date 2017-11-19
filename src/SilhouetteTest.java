@@ -1,5 +1,8 @@
 import javax.swing.*;
 import java.awt.*;
+import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
+import java.text.DecimalFormat;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -34,13 +37,16 @@ import java.util.List;
  *     java -jar <path to SilhouetteTest.jar>
  *
  *   Curio Small Cutting Bed is 8.5 x 6 inches, or 4318 x 3048 units
- *     or 508 units/inch, or 20 units/mm (after power up in landscape mode)
+ *   Curio Large Cutting Bed is 8.5 x 12 inches, or 6096 x 4318 units
+ *    based on  508 units/inch, or 20 units/mm
+ *    Note: Silhouette Studio does not auto detect which base is inserted
  */
 
 public class SilhouetteTest extends JFrame {
+  static final DecimalFormat  df = new DecimalFormat("#0.0#");
   private static List<Cutter> cutters = new LinkedList<>();
   private JTextArea           text = new JTextArea();
-  private JCheckBox           moveTest, drawTest, miscTest, showCmds;
+  private JCheckBox           moveTest, drawTest, penTest, circleTest, showCmds;
   private JComboBox<Cutter>   select;
   private USBIO               usb;
 
@@ -97,44 +103,41 @@ public class SilhouetteTest extends JFrame {
       if (showCmds.isSelected()) {
         usb.setDebug(text);
       }
+      while (usb.receive().length > 0)
+        ;
       text.append("Cutter: " + getVersionString() + "\n");
       usb.send("FN0\u0003".getBytes());               // Set landscape mode
+      usb.send("FC18\u0003".getBytes());              // Offset for Tool 1 (18 = cutter, 0 = pen)
+      usb.send("FC18\u0003".getBytes());              // Offset for Tool 2
       // When the Curio is set to what I consider Landscape mode in which the left/right movement of the cutting
       // head is the X axis and the in/out movement of the tray is the Y axis.  However, I have to reverse the
       // order of the X and Y values in the draw and move commands to make the Curio work this way, so I've coded
       // accordingly.  Likewise, the code for getCoords() is likewise reversed and can be called to get the size
       // of the workspace reported as two points for upper left and lower right with x = 0,y = 0 being the position
       // with cutting head to the left and positioned to the rear of the tray.
-      Point ul = getCoord("[\u0003");
-      Point lr = getCoord("U\u0003");
-      text.append("Workspace: x1 = " + ul.x + ", y1 = " + ul.y + ", x2 = " + lr.x + ", y2 = " + lr.y + "\n");
+      Rectangle2D.Double work = getWorkArea();
+      // Limit safe work area by setting 30 unit boundary on all sides
+      text.append("Workspace: x1 = " + work.x + ", y1 = " + work.y + ", x2 = " + work.width + ", y2 = " + work.height + "\n");
+      work = limitCutArea(work, 30, 30);
+      text.append("Workspace: x1 = " + work.x + ", y1 = " + work.y + ", x2 = " + work.width + ", y2 = " + work.height + "\n");
       /*
       Commands I still haven't completely figured out how to use.  Supposedly:
-        Pressure/Thickness: value of 1-33 is multiplied by 7 to get grams of force (7-230)
         Track enhancement: rolls material in and out several times to emboss grip rollers (not used with Curio)
-      usb.send("FW300\u0003".getBytes());             // Media (paper type) (100-138, or 300)
-      print(usb.receive());
-      usb.send("FX15\u0003".getBytes());              // Pressure (1-33)
-      print(usb.receive());
-      usb.send("FC18\u0003".getBytes());              // Cutter Offset "FC18" for cutting, "FC0" for pen
-      print(usb.receive());
+      usb.send("FW300\u0003".getBytes());             // Set Media (paper type) (100-138, or 300)
       usb.send("FY0\u0003".getBytes());               // "FY1" for track enhance, else "FN0" for none
-      print(usb.receive());
-      usb.send("FN0\u0003".getBytes());               // "FN0" for Landscape, else "FN1" for Portrait mode
-      print(usb.receive());
       usb.send("SO0\u0003".getBytes());               // Set Origin 0 (Not sure what this does)
-      print(usb.receive());
       */
       moveHome();
       if (moveTest.isSelected()) {
         text.append("Do Move Test\n");
         // Move around the perimeter of the full cutting area (8.5 x 6 inches) inset by 500 units
         // Note: move speed seems to be equal to draw speed set to 10 ("!10")
+        moveTo(work.x + 500, work.y + 500);
         for (int ii = 0; ii < 1; ii++) {
-          moveTo(lr.x - 500, ul.y + 500);
-          moveTo(lr.x - 500, lr.y - 500);
-          moveTo(ul.x + 500, lr.y - 500);
-          moveTo(ul.x + 500, ul.y + 500);
+          moveTo(work.width - 500, work.y + 500);
+          moveTo(work.width - 500, work.height - 500);
+          moveTo(work.x + 500, work.height - 500);
+          moveTo(work.x + 500, work.y + 500);
         }
       }
       setDrawSpeed(6);
@@ -142,53 +145,42 @@ public class SilhouetteTest extends JFrame {
         text.append("Do Draw Test\n");
         doWait();
         for (int pen = 1; pen <= 2; pen++) {
+          int inset = 150 * pen;
           text.append("  Draw with Pen " + pen + "\n");
           selectPen(pen);
-          // Build one command string to draw around the perimeter of the cutting area inset by 500 units
+          moveTo(work.x + inset, work.y + inset);
+          // Build one command string to draw a rectangle the size of the cutting area minus 150 or 300 units
           String draw = "D" +
-          formatDrawCoords(lr.x - 500, ul.y + 500, ",") +
-          formatDrawCoords(lr.x - 500, lr.y - 500, ",") +
-          formatDrawCoords(ul.x + 500, lr.y - 500, ",") +
-          formatDrawCoords(ul.x + 500, ul.y + 500, "\u0003");
+          formatCoords(work.width - inset, work.y + inset, ",") +
+          formatCoords(work.width - inset, work.height - inset, ",") +
+          formatCoords(work.x + inset, work.height - inset, ",") +
+          formatCoords(work.x + inset, work.y + inset, "\u0003");
           usb.send(draw.getBytes());
           doWait();
         }
       }
       // Used to try out experimental command seqqueces
-      if (miscTest.isSelected()) {
-        if (true) {
-          // Tests how a moveTo() followed by a drawTo() at the same location results in a pen down/up
-          text.append("Do Pen Up/Down Test\n");
-          for (int pen = 1; pen <= 2; pen++) {
-            text.append("  Use Pen " + pen + "\n");
-            selectPen(pen);
-            for (int ii = 0; ii < 2; ii++) {
-              moveTo(1000, 1000);
-              drawTo(1000, 1000);
-            }
+      if (penTest.isSelected()) {
+        // Tests how a moveTo() followed by a drawTo() at the same location results in a pen down/up
+        text.append("Do Pen Up/Down Test\n");
+        for (int pen = 1; pen <= 2; pen++) {
+          text.append("  Use Pen " + pen + "\n");
+          selectPen(pen);
+          for (int ii = 0; ii < 2; ii++) {
+            moveTo(1000, 1000);
+            drawTo(1000, 1000);
           }
-        } else {
-          // Draws part of a large arc, but not a circle...
-          text.append("Do Draw 3 Point Circle\n");
-          int xLoc = 2000;
-          int yLoc = 2000;
-          int radius = 500;
-          Point p1 = new Point(xLoc, yLoc - radius);
-          Point p2 = new Point(xLoc, yLoc + radius);
-          Point p3 = new Point(xLoc + radius, yLoc);
-
-          moveTo(xLoc + radius, yLoc);
-          String draw = "WP" +
-          formatDrawCoords(p1, ",") +
-          formatDrawCoords(p2, ",") +
-          formatDrawCoords(p3, "\u0003");
-          usb.send(draw.getBytes());
-          doWait();
-
-          //drawPlusMark(p1);
-          //drawPlusMark(p2);
-          //drawPlusMark(p3);
         }
+      }
+      if (circleTest.isSelected()) {
+        // Draw Bezier Circle
+        usb.send(("BZ0,508.20,2011.90,508.06,2018.58,508,2025.28,508,2032,0" + "\u0003").getBytes());
+        usb.send(("BZ1,508,2032,508,2592.62,963.38,3048,1524,3048,0" + "\u0003").getBytes());
+        usb.send(("BZ1,1524,3048,2084.62,3048,2540,2592.62,2540,2032,0" + "\u0003").getBytes());
+        usb.send(("BZ1,2540,2032,2540,1471.38,2084.62,1016,1524,1016,0" + "\u0003").getBytes());
+        usb.send(("BZ1,1524,1016,963.38,1016,508,1471.38,508,2032,0" + "\u0003").getBytes());
+        usb.send(("BZ1,508,2032,508,2038.72,508.06,2045.42,508.20,2052.10,0" + "\u0003").getBytes());
+        doWait();
       }
       text.append("Return to Home Position\n");
       moveHome();
@@ -211,10 +203,11 @@ public class SilhouetteTest extends JFrame {
     text.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
     JScrollPane scroll = new JScrollPane(text, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
     add(scroll, BorderLayout.CENTER);
-    JPanel panel = new JPanel(new GridLayout(1, 6, 2, 2));
+    JPanel panel = new JPanel(new GridLayout(1, 7, 2, 2));
     panel.add(moveTest = new JCheckBox("Move Test", true));
     panel.add(drawTest = new JCheckBox("Draw Test", false));
-    panel.add(miscTest = new JCheckBox("Misc Test", false));
+    panel.add(penTest = new JCheckBox("Pen Dn/Up", false));
+    panel.add(circleTest = new JCheckBox("Draw Circle", false));
     panel.add(showCmds = new JCheckBox("Show I/O", false));
     select = new JComboBox<>(cutters.toArray(new Cutter[cutters.size()]));
     panel.add(select);
@@ -232,12 +225,12 @@ public class SilhouetteTest extends JFrame {
   }
 
   private void moveHome () {
-    usb.send("H\u0003".getBytes());                 // Move to Home Position
+    usb.send("H\u0003".getBytes());                         // Move to Home Position
     doWait();
   }
 
   private String getVersionString() {
-    usb.send("FG\u0003".getBytes());               // Query Version String
+    usb.send("FG\u0003".getBytes());                        // Query Version String
     byte[] rsp = usb.receive();
     return (new String(rsp)).substring(0, rsp.length - 1).trim();
   }
@@ -251,40 +244,45 @@ public class SilhouetteTest extends JFrame {
     usb.send(("!" + speed + "\u0003").getBytes());
   }
 
+  /**
+   * Set tool pressure (multiplied by 7 to get grams of force, or 7-230 grams)
+   * @param pres parameter range 1 - 33
+   */
+  private void setPressure (int pres) {
+    pres = Math.max(Math.min(pres, 1), 33);                 // Range is 1-33
+    usb.send(("FX" + pres + "\u0003").getBytes());
+  }
+
   private void selectPen (int pen) {
     if (pen == 1 || pen == 2) {                             // 1 selects left pen, 2 selects right pen
       usb.send(("J" + pen + "\u0003").getBytes());
     }
   }
 
-  private void moveTo (Point pnt) {
+  private void moveTo (Point2D.Double pnt) {
     moveTo(pnt.x, pnt.y);
   }
 
-  private void moveTo (int xLoc, int yLoc) {
-    usb.send(("M" + yLoc + "," + xLoc +"\u0003").getBytes());
+  private void moveTo (double xLoc, double yLoc) {
+    usb.send(("M" + formatCoords(xLoc, yLoc, "\u0003")).getBytes());
     doWait();
   }
 
-  private void drawTo (Point pnt) {
+  private void drawTo (Point2D.Double pnt) {
     drawTo(pnt.x, pnt.y);
   }
 
-  private void drawTo (int xLoc, int yLoc) {
-    usb.send(("D" + formatDrawCoords(xLoc, yLoc, "\u0003")).getBytes());
+  private void drawTo (double xLoc, double yLoc) {
+    usb.send(("D" + formatCoords(xLoc, yLoc, "\u0003")).getBytes());
     doWait();
   }
 
-  private String formatDrawCoords (Point pnt, String end) {
-    return formatDrawCoords(pnt.x, pnt.y, end);
+  private String formatCoords (Point2D.Double pnt, String end) {
+    return formatCoords(pnt.x, pnt.y, end);
   }
 
-  private String formatDrawCoords (int xLoc, int yLoc, String end) {
-    return yLoc + "," + xLoc + end;
-  }
-
-  private void drawPlusMark (Point pnt) {
-    drawPlusMark(pnt.x, pnt.y);
+  private String formatCoords (double xLoc, double yLoc, String end) {
+    return df.format(yLoc) + "," + df.format(xLoc) + end;
   }
 
   private void drawPlusMark (int xLoc, int yLoc) {
@@ -295,14 +293,27 @@ public class SilhouetteTest extends JFrame {
     drawTo(xLoc, yLoc + size);
   }
 
-  private Point getCoord (String cmd) {
+  private Point2D.Double getCoord (String cmd) {
     usb.send(cmd.getBytes());
     byte[] rsp = usb.receive();
     String tmp = (new String(rsp)).substring(0, rsp.length - 1);
     String[] vals = tmp.split(",");
-    int yy = Integer.parseInt(vals[0].trim());
-    int xx = Integer.parseInt(vals[1].trim());
-    return new Point(xx, yy);
+    double yy = Double.parseDouble(vals[0].trim());
+    double xx = Double.parseDouble(vals[1].trim());
+    return new Point2D.Double(xx, yy);
+  }
+
+  private Rectangle2D.Double getWorkArea () {
+    Point2D.Double ul = getCoord("[\u0003");
+    Point2D.Double lr = getCoord("U\u0003");
+    return new Rectangle2D.Double(ul.x, ul.y, lr.x, lr.y);
+  }
+
+  private Rectangle2D.Double limitCutArea (Rectangle2D.Double work, double xInset, double yInset) {
+    Rectangle2D.Double rect = new Rectangle2D.Double(xInset, yInset, work.width - xInset * 2, work.height - yInset * 2);
+    usb.send(("/" + rect.y + "," + rect.x + "\u0003").getBytes());
+    usb.send(("/" + rect.height + "," + rect.width + "\u0003").getBytes());
+    return rect;
   }
 
   /**
