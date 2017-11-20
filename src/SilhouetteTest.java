@@ -128,7 +128,6 @@ public class SilhouetteTest extends JFrame {
       usb.send("FY0\u0003".getBytes());               // "FY1" for track enhance, else "FN0" for none
       usb.send("SO0\u0003".getBytes());               // Set Origin 0 (Not sure what this does)
       */
-      moveHome();
       if (moveTest.isSelected()) {
         text.append("Do Move Test\n");
         // Move around the perimeter of the full cutting area (8.5 x 6 inches) inset by 500 units
