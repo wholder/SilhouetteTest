@@ -1,5 +1,7 @@
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.text.DecimalFormat;
@@ -46,8 +48,10 @@ public class SilhouetteTest extends JFrame {
   static final DecimalFormat  df = new DecimalFormat("#0.0#");
   private static List<Cutter> cutters = new LinkedList<>();
   private JTextArea           text = new JTextArea();
-  private JCheckBox           moveTest, drawTest, penTest, circleTest, showCmds;
+  private JTextField          command;
+  private JCheckBox           moveTest, drawTest, penTest, circleTest, showCmds, sendCmd;
   private JComboBox<Cutter>   select;
+  private boolean             manCmd, clearCmd;
   private USBIO               usb;
 
   static class Cutter {
@@ -93,7 +97,6 @@ public class SilhouetteTest extends JFrame {
 
   private void runTests () {
     try {
-      text.setText("");
       Cutter sel = (Cutter) select.getSelectedItem();
       if (sel.doScan) {
         SilhouetteScan.doScan(text);
@@ -106,21 +109,35 @@ public class SilhouetteTest extends JFrame {
       // Gobble up any leftover responses from a prior command sequence, if any
       while (usb.receive().length > 0)
         ;
-      text.append("Cutter: " + getVersionString() + "\n");
-      usb.send("FN0\u0003".getBytes());               // Set landscape mode
-      usb.send("FC18\u0003".getBytes());              // Offset for Tool 1 (18 = cutter, 0 = pen)
-      usb.send("FC18\u0003".getBytes());              // Offset for Tool 2
-      // When the Curio is set to what I consider Landscape mode in which the left/right movement of the cutting
-      // head is the X axis and the in/out movement of the tray is the Y axis.  However, I have to reverse the
-      // order of the X and Y values in the draw and move commands to make the Curio work this way, so I've coded
-      // accordingly.  Likewise, the code for getCoords() is likewise reversed and can be called to get the size
-      // of the workspace reported as two points for upper left and lower right with x = 0,y = 0 being the position
-      // with cutting head to the left and positioned to the rear of the tray.
-      Rectangle2D.Double work = getWorkArea();
-      // Limit safe work area by setting 30 unit boundary on all sides
-      text.append("Workspace: x1 = " + work.x + ", y1 = " + work.y + ", x2 = " + work.width + ", y2 = " + work.height + "\n");
-      work = limitCutArea(work, 30, 30);
-      text.append("Workspace: x1 = " + work.x + ", y1 = " + work.y + ", x2 = " + work.width + ", y2 = " + work.height + "\n");
+      if (manCmd) {
+        String cmd = command.getText();
+        usb.send((cmd + "\u0003").getBytes());
+        text.append("Snd: " + cmd + "\n");
+        byte[] rsp = usb.receive();
+        if (rsp.length > 0) {
+          text.append("Rec: \"" + (new String(rsp)).substring(0, rsp.length - 1) + "\"\n");
+        }
+        if (clearCmd) {
+          command.setText("");
+          clearCmd = false;
+        }
+      } else {
+        text.setText("");
+        text.append("Cutter: " + getVersionString() + "\n");
+        usb.send("FN0\u0003".getBytes());               // Set landscape mode
+        usb.send("FC18\u0003".getBytes());              // Offset for Tool 1 (18 = cutter, 0 = pen)
+        usb.send("FC18\u0003".getBytes());              // Offset for Tool 2
+        // When the Curio is set to what I consider Landscape mode in which the left/right movement of the cutting
+        // head is the X axis and the in/out movement of the tray is the Y axis.  However, I have to reverse the
+        // order of the X and Y values in the draw and move commands to make the Curio work this way, so I've coded
+        // accordingly.  Likewise, the code for getCoords() is likewise reversed and can be called to get the size
+        // of the workspace reported as two points for upper left and lower right with x = 0,y = 0 being the position
+        // with cutting head to the left and positioned to the rear of the tray.
+        Rectangle2D.Double work = getWorkArea();
+        // Limit safe work area by setting 30 unit boundary on all sides
+        text.append("Workspace: x1 = " + work.x + ", y1 = " + work.y + ", x2 = " + work.width + ", y2 = " + work.height + "\n");
+        work = limitCutArea(work, 30, 30);
+        text.append("Workspace: x1 = " + work.x + ", y1 = " + work.y + ", x2 = " + work.width + ", y2 = " + work.height + "\n");
       /*
       Commands I still haven't completely figured out how to use.  Supposedly:
         Track enhancement: rolls material in and out several times to emboss grip rollers (not used with Curio)
@@ -128,94 +145,96 @@ public class SilhouetteTest extends JFrame {
       usb.send("FY0\u0003".getBytes());               // "FY1" for track enhance, else "FN0" for none
       usb.send("SO0\u0003".getBytes());               // Set Origin 0 (Not sure what this does)
       */
-      if (moveTest.isSelected()) {
-        text.append("Do Move Test\n");
-        // Move around the perimeter of the full cutting area (8.5 x 6 inches) inset by 500 units
-        // Note: move speed seems to be equal to draw speed set to 10 ("!10")
-        moveTo(work.x + 500, work.y + 500);
-        for (int ii = 0; ii < 1; ii++) {
-          moveTo(work.width - 500, work.y + 500);
-          moveTo(work.width - 500, work.height - 500);
-          moveTo(work.x + 500, work.height - 500);
+        if (moveTest.isSelected()) {
+          text.append("Do Move Test\n");
+          // Move around the perimeter of the full cutting area (8.5 x 6 inches) inset by 500 units
+          // Note: move speed seems to be equal to draw speed set to 10 ("!10")
           moveTo(work.x + 500, work.y + 500);
+          for (int ii = 0; ii < 1; ii++) {
+            moveTo(work.width - 500, work.y + 500);
+            moveTo(work.width - 500, work.height - 500);
+            moveTo(work.x + 500, work.height - 500);
+            moveTo(work.x + 500, work.y + 500);
+          }
         }
-      }
-      setDrawSpeed(6);
-      if (drawTest.isSelected()) {
-        text.append("Do Draw Test\n");
-        doWait();
-        for (int pen = 1; pen <= 2; pen++) {
-          int inset = 150 * pen;
-          text.append("  Draw with Pen " + pen + "\n");
-          selectPen(pen);
-          moveTo(work.x + inset, work.y + inset);
-          // Build one command string to draw a rectangle the size of the cutting area minus 150 or 300 units
-          // Unlike move commands, draw commands execute in sequence and the next command does not proceed
-          // until the prior comamnd is complete.  This means that only one send command is needed as long as
-          // the total length of the set of commands does not exceed the 64 byte limit of the endpoint buffer.
-          String draw = "D" +
-          formatCoords(work.width - inset, work.y + inset, ",") +
-          formatCoords(work.width - inset, work.height - inset, ",") +
-          formatCoords(work.x + inset, work.height - inset, ",") +
-          formatCoords(work.x + inset, work.y + inset, "\u0003");
-          usb.send(draw.getBytes());
+        setDrawSpeed(6);
+        if (drawTest.isSelected()) {
+          text.append("Do Draw Test\n");
           doWait();
+          for (int pen = 1; pen <= 2; pen++) {
+            int inset = 150 * pen;
+            text.append("  Draw with Pen " + pen + "\n");
+            selectPen(pen);
+            moveTo(work.x + inset, work.y + inset);
+            // Build one command string to draw a rectangle the size of the cutting area minus 150 or 300 units
+            // Unlike move commands, draw commands execute in sequence and the next command does not proceed
+            // until the prior comamnd is complete.  This means that only one send command is needed as long as
+            // the total length of the set of commands does not exceed the 64 byte limit of the endpoint buffer.
+            String draw = "D" +
+                formatCoords(work.width - inset, work.y + inset, ",") +
+                formatCoords(work.width - inset, work.height - inset, ",") +
+                formatCoords(work.x + inset, work.height - inset, ",") +
+                formatCoords(work.x + inset, work.y + inset, "\u0003");
+            usb.send(draw.getBytes());
+            doWait();
+          }
         }
-      }
-      // Used to try out experimental command seqqueces
-      if (penTest.isSelected()) {
-        // Tests how a moveTo() followed by a drawTo() at the same location results in a pen down/up
-        text.append("Do Pen Up/Down Test\n");
-        for (int pen = 1; pen <= 2; pen++) {
-          text.append("  Use Pen " + pen + "\n");
-          selectPen(pen);
-          for (int ii = 0; ii < 2; ii++) {
-            moveTo(1000, 1000);
-            // By repeating command at same location we can increase pen down time.  Each draw() call
-            // adds about 0.25 seconds to the down time.
-            for (int jj = 0; jj < 10; jj++) {
-              drawTo(1000, 1000);
+        // Used to try out experimental command seqqueces
+        if (penTest.isSelected()) {
+          // Tests how a moveTo() followed by a drawTo() at the same location results in a pen down/up
+          text.append("Do Pen Up/Down Test\n");
+          for (int pen = 1; pen <= 2; pen++) {
+            text.append("  Use Pen " + pen + "\n");
+            selectPen(pen);
+            for (int ii = 0; ii < 2; ii++) {
+              moveTo(1000, 1000);
+              // By repeating command at same location we can increase pen down time.  Each draw() call
+              // adds about 0.25 seconds to the down time.
+              for (int jj = 0; jj < 10; jj++) {
+                drawTo(1000, 1000);
+              }
             }
           }
         }
-      }
-      if (circleTest.isSelected()) {
-        text.append("Draw 4 inch diameter circle\n");
-        setDrawSpeed(10);
-        if (false) {
-          // Draw Bezier Circle using data generated by Silhouette Studio.  Note: the first and last lines,
-          // which are commented out here, seem to be used to add lead in and lead out segments.  The actual
-          // circle is drawn by the 4 inner bezier commands.  I'm not sure why these extra segments are added,
-          // but perhaps it's needed to get a smooth start with the blade.  Also, in commenting out the first
-          // line, I also needed to change the 2nd line's command to BZ0 from BZ1.  Curiously, when the sketch
-          // pen is the selected tool, Silhouette Studio generates a ong series of draw commmands instead of
-          // using a bezier curve.  I have no idea why it does this.
-          //usb.send(("BZ0,508.20,2011.90,508.06,2018.58,508,2025.28,508,2032,0" + "\u0003").getBytes());
-          usb.send(("BZ0,508,2032,508,2592.62,963.38,3048,1524,3048,0" + "\u0003").getBytes());
-          usb.send(("BZ1,1524,3048,2084.62,3048,2540,2592.62,2540,2032,0" + "\u0003").getBytes());
-          usb.send(("BZ1,2540,2032,2540,1471.38,2084.62,1016,1524,1016,0" + "\u0003").getBytes());
-          usb.send(("BZ1,1524,1016,963.38,1016,508,1471.38,508,2032,0" + "\u0003").getBytes());
-          //usb.send(("BZ1,508,2032,508,2038.72,508.06,2045.42,508.20,2052.10,0" + "\u0003").getBytes());
-          doWait();
-        } else {
-          // This draws the same 4x4 inch circle using the new bezier() function
-          Point2D.Double[][] points = {
-              {new Point2D.Double(2032.0, 508.0), new Point2D.Double(2592.62, 508.0),
-                  new Point2D.Double(3048.0, 963.38), new Point2D.Double(3048.0, 1524.0)},
-              {new Point2D.Double(3048.0, 1524.0), new Point2D.Double(3048.0, 2084.62),
-                  new Point2D.Double(2592.62, 2540.0), new Point2D.Double(2032.0, 2540.0)},
-              {new Point2D.Double(2032.0, 2540.0), new Point2D.Double(1471.38, 2540.0),
-                  new Point2D.Double(1016.0, 2084.62), new Point2D.Double(1016.0, 1524.0)},
-              {new Point2D.Double(1016.0, 1524.0), new Point2D.Double(1016.0, 963.38),
-                  new Point2D.Double(1471.38, 508.0), new Point2D.Double(2032.0, 508.0)}};
-          for (int ii = 0; ii < points.length; ii++) {
-            bezier(points[ii], (ii == 0 ? false : true));
+        if (circleTest.isSelected()) {
+          text.append("Draw 4 inch diameter circle\n");
+          setDrawSpeed(10);
+          if (false) {
+            // Draw Bezier Circle using data generated by Silhouette Studio.  Note: the first and last lines,
+            // which are commented out here, seem to be used to add lead in and lead out segments.  The actual
+            // circle is drawn by the 4 inner bezier commands.  I'm not sure why these extra segments are added,
+            // but perhaps it's needed to get a smooth start with the blade.  Also, in commenting out the first
+            // line, I also needed to change the 2nd line's command to BZ0 from BZ1.  Curiously, when the sketch
+            // pen is the selected tool, Silhouette Studio generates a ong series of draw commmands instead of
+            // using a bezier curve.  I have no idea why it does this.
+            //usb.send(("BZ0,508.20,2011.90,508.06,2018.58,508,2025.28,508,2032,0" + "\u0003").getBytes());
+            usb.send(("BZ0,508,2032,508,2592.62,963.38,3048,1524,3048,0" + "\u0003").getBytes());
+            usb.send(("BZ1,1524,3048,2084.62,3048,2540,2592.62,2540,2032,0" + "\u0003").getBytes());
+            usb.send(("BZ1,2540,2032,2540,1471.38,2084.62,1016,1524,1016,0" + "\u0003").getBytes());
+            usb.send(("BZ1,1524,1016,963.38,1016,508,1471.38,508,2032,0" + "\u0003").getBytes());
+            //usb.send(("BZ1,508,2032,508,2038.72,508.06,2045.42,508.20,2052.10,0" + "\u0003").getBytes());
+            doWait();
+          } else {
+            // This draws the same 4x4 inch circle using the new bezier() function
+            Point2D.Double[][] points = {
+                {new Point2D.Double(2032.0, 508.0), new Point2D.Double(2592.62, 508.0),
+                    new Point2D.Double(3048.0, 963.38), new Point2D.Double(3048.0, 1524.0)},
+                {new Point2D.Double(3048.0, 1524.0), new Point2D.Double(3048.0, 2084.62),
+                    new Point2D.Double(2592.62, 2540.0), new Point2D.Double(2032.0, 2540.0)},
+                {new Point2D.Double(2032.0, 2540.0), new Point2D.Double(1471.38, 2540.0),
+                    new Point2D.Double(1016.0, 2084.62), new Point2D.Double(1016.0, 1524.0)},
+                {new Point2D.Double(1016.0, 1524.0), new Point2D.Double(1016.0, 963.38),
+                    new Point2D.Double(1471.38, 508.0), new Point2D.Double(2032.0, 508.0)}};
+            for (int ii = 0; ii < points.length; ii++) {
+              bezier(points[ii], (ii != 0));
+            }
+            doWait();
           }
-          doWait();
         }
+        text.append("Return to Home Position\n");
+        moveHome();
+        text.append("Done\n");
       }
-      text.append("Return to Home Position\n");
-      moveHome();
     } catch (Exception ex) {
       text.append(ex.getMessage() + "\n");
       ex.printStackTrace();
@@ -224,7 +243,6 @@ public class SilhouetteTest extends JFrame {
         usb.close();
       }
     }
-    text.append("Done\n");
   }
 
   private SilhouetteTest () {
@@ -235,25 +253,51 @@ public class SilhouetteTest extends JFrame {
     text.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
     JScrollPane scroll = new JScrollPane(text, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
     add(scroll, BorderLayout.CENTER);
-    JPanel panel = new JPanel(new GridLayout(1, 7, 2, 2));
-    panel.add(moveTest = new JCheckBox("Move Test", true));
-    panel.add(drawTest = new JCheckBox("Draw Test", false));
-    panel.add(penTest = new JCheckBox("Pen Dwell", false));
-    panel.add(circleTest = new JCheckBox("Draw Circle", false));
-    panel.add(showCmds = new JCheckBox("Show I/O", false));
-    select = new JComboBox<>(cutters.toArray(new Cutter[cutters.size()]));
-    panel.add(select);
-    JButton run = new JButton("RUN");
-    run.addActionListener(e -> {
-      Thread worker = new Thread(this::runTests);
-      worker.start();
+    JPanel controls = new JPanel(new FlowLayout());
+    command = new JTextField();
+    CardLayout cardLayout = new CardLayout();
+    JPanel cards = new JPanel(cardLayout);
+    JPanel options = new JPanel(new GridLayout(1, 6, 2, 2));
+    options.add(moveTest = new JCheckBox("Move Test", true));
+    options.add(drawTest = new JCheckBox("Draw Test", false));
+    options.add(penTest = new JCheckBox("Pen Dwell", false));
+    options.add(circleTest = new JCheckBox("Draw Circle", false));
+    cards.add(options);
+    cards.add(command);
+    controls.add(cards);
+    controls.add(showCmds = new JCheckBox("Show I/O", false));
+    controls.add(sendCmd = new JCheckBox("Snd Cmd", false));
+    sendCmd.addChangeListener(ev -> {
+      if (manCmd = sendCmd.isSelected()) {
+        cardLayout.last(cards);
+      } else {
+        cardLayout.first(cards);
+      }
     });
-    panel.add(run);
-    add(panel, BorderLayout.SOUTH);
+    select = new JComboBox<>(cutters.toArray(new Cutter[cutters.size()]));
+    controls.add(select);
+    JButton run = new JButton("RUN");
+    run.addActionListener(e -> startTests());
+    command.addKeyListener(new KeyAdapter() {
+      @Override
+      public void keyPressed(KeyEvent ev) {
+        if(ev.getKeyCode() == KeyEvent.VK_ENTER) {
+          clearCmd = true;
+          startTests();
+        }
+      }
+    });
+    controls.add(run);
+    add(controls, BorderLayout.SOUTH);
     setLocationRelativeTo(null);
     setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
     pack();
     setVisible(true);
+  }
+
+  private void startTests () {
+    Thread worker = new Thread(this::runTests);
+    worker.start();
   }
 
   private void moveHome () {
