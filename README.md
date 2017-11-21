@@ -33,13 +33,34 @@ _Caution: I have observed that some of the commands I tried seemed to put the Cu
 Here is a list of most of the more useful commands needed to control the Silhouette Curio that I've been able to test and verify.  All coordinate values are expressed in "units" where 508 units equals one inch and 20 units equals one millimeter.  On the Curio, the first coordinate value (normally the X axis) in a pair of coordinate values controls in and out movement of the work tray and the second coordinate value (normally the Y axis) moves the tool head left and right.  Increasing values of X (the first value) move the tray back towards the rear of the Curio and increasing values of Y (the 2nd value) move the tool head to the right.  Rotating the Curio by 90 degrees clockwise when looking down from above will show that this scheme implements a quadrant 1 coordinate system with the origin at the lower left.
 
     H           - Home the tool head and tray (returns to the origin)
+    
     M100,200    - Move to position 100,200
+    
     D100,300    - Lower selected tool and draw or cut a line from current position to 100,300
+    
     G           - Causes the Curio to send back a String like "   100,   300,    20" where the first two values
                   are the current position of the tool head and the 3rd value is *usually* the selected tool * 10.
+                  
     Jn          - Select tool n where 1 is the lefthand tool and 2 is the righthand tool
+    
     !n          - Set the cut/draw speed to n where n varies from 1-10 and n * 10 is centimeters/second
+    
     FXn         - Set the tool pressure when cutting where n varies from 1-33 and n * 7 is grams of force
+    
+    FN0         - Select Landscape mode (FN1 selects Portrait mode, but this doesn't work on Curio)
+    
+    FG          - Returns firmware version info, such as "CURIO V1.20    "
+    
+    FCn         - Sets tool offset where n is 18 for a cutting tool and 0 for sketch pen. Silhouette Studio issues
+                  this command twice in a row and I think the first sets the offset for the lefthand tool (J1) and
+                  the 2nd sets it for the righthand tool.
+                  
+    [           - Get lower left corner of current working area (used with 'U' command)
+    U           - Get width/height of current working area (3048,4318 for small base and 6096,4318 for large base)
+    
+    \0,0        - Set lower left corner of current working area to 0,0
+    Z3048,4318  - Set width/height of current working area to 3048,4318
+                  
     BZ          - draws 4 point Bezier curve (see image below)
 
 <p align="center"><img src="https://github.com/wholder/SilhouetteTest/blob/master/images/Bezier Curve.png"></p>

@@ -38,8 +38,8 @@ import java.util.List;
  *     sudo su (then enter password)
  *     java -jar <path to SilhouetteTest.jar>
  *
- *   Curio Small Cutting Bed is 8.5 x 6 inches, or 4318 x 3048 units
- *   Curio Large Cutting Bed is 8.5 x 12 inches, or 6096 x 4318 units
+ *   Curio Small Cutting Bed is 8.5 x 6 inches, or 4318 x 3048 units (with X axis as tool head)
+ *   Curio Large Cutting Bed is 8.5 x 12 inches, or 4318 x 6096 units
  *    based on  508 units/inch, or 20 units/mm
  *    Note: Silhouette Studio does not auto detect which base is inserted
  *
