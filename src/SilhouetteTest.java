@@ -45,21 +45,21 @@ import java.util.List;
  *
  *  Other commands:
  *    G           - Query current position and selected tool slot, returns String like this:
- *                  "  1000,  1000,    20" where tool is 20/10, or 2
- *    O100,100    - Move relative to current location
+ *                  "  1000,  1000,    20" where selected tool is last number / 10, or 2 here
+ *    O100,100    - Move +100,+100 relative to current location (use G command to verify new position)
  *
  */
 
 public class SilhouetteTest extends JFrame {
-  static final DecimalFormat  df = new DecimalFormat("0.##");
-  private static List<Cutter> cutters = new LinkedList<>();
-  private JTextArea           text = new JTextArea();
-  private JScrollPane         scroll;
-  private JTextField          command;
-  private JCheckBox           moveTest, drawTest, penTest, circleTest, showCmds, sendCmd;
-  private JComboBox<Cutter>   select;
-  private boolean             manCmd, clearCmd;
-  private USBIO               usb;
+  private static DecimalFormat  df = new DecimalFormat("0.##");
+  private static List<Cutter>   cutters = new LinkedList<>();
+  private JTextArea             text = new JTextArea();
+  private JScrollPane           scroll;
+  private JTextField            command;
+  private JCheckBox             moveTest, drawTest, penTest, circleTest, showCmds, sendCmd;
+  private JComboBox<Cutter>     select;
+  private boolean               manCmd, clearCmd;
+  private USBIO                 usb;
 
   static class Cutter {
     String  name;
@@ -136,13 +136,15 @@ public class SilhouetteTest extends JFrame {
         // of the workspace reported as two points for upper left and lower right with x = 0,y = 0 being the position
         // with cutting head to the left and positioned to the rear of the tray.
         Rectangle2D.Double work = getWorkArea();
-        // Limit safe work area by setting 30 unit boundary on all sides
         appendLine("Workspace: " + df.format(work.x) + ", " + df.format(work.y) + ", " +
                     df.format(work.width) + ", " + df.format(work.height));
         // Call limitWorkArea() to define an aera outside of which the device will not cut
+        // For example, limit safe work area by setting 30 unit boundary on all sides, like this
         //work = limitCutArea(work, 30, 30);
         //appendLine("Workspace: " + df.format(work.x) + ", " + df.format(work.y) + ", " +
         //            df.format(work.width) + ", " + df.format(work.height)");
+        // Note: subsequent calls to getWorkArea() will then show the newly set limited area, so you'l have to save
+        // or hard code the original size of the work area to restore it later, as I've found no command to do this.
         if (moveTest.isSelected()) {
           appendLine("Do Move Test");
           // Move inside the perimeter of the full cutting area (8.5 x 6 inches) inset by 500 units.  Move speed seems to
@@ -427,11 +429,14 @@ public class SilhouetteTest extends JFrame {
 
   private String getResponse () {
     byte[] data = usb.receive();
-    String rsp = (new String(data)).substring(0, data.length - 1);
-    if (data.length > 0 && (showCmds.isSelected() || sendCmd.isSelected())) {
-      appendLine("Rec: \"" + rsp + "\"");
+    if (data.length > 0) {
+      String rsp = (new String(data)).substring(0, data.length - 1);
+      if (data.length > 0 && (showCmds.isSelected() || sendCmd.isSelected())) {
+        appendLine("Rec: \"" + rsp + "\"");
+      }
+      return rsp;
     }
-    return rsp;
+    return "";
   }
 
   private Rectangle2D.Double limitCutArea (Rectangle2D.Double work, double xInset, double yInset) {
