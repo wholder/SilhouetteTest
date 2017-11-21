@@ -21,3 +21,5 @@ If anyone owns a Mac and any of the other Silhouette cutters, such as the Cameo 
           BLK add: 0x82 (IN)  pkt: 64
 
 Please copy all of this text, along with the full Model Name and Version of the Silhouette device tested, and post it in a comment in the Wiki Section listed above.
+#### Direct Command Mode
+If you enable the `"Snd Cmd"` checkbox, a text entry field will appear where you can type commands, such as `"M1000,1000"` (move to position 1000, 1000 where the values are in units of 508 units/inch) and send them directly to the selected Silhouette device by pressing ENTER.  The scrolling text area will print out the command you send along with any response received back, if any.  I added this a way to try and discover new commands through experimentation.  _**Caution**: I have observed that some of the commands I tried seemed to put the Curio into a state where some functions, such as tool up and down, stopped working, or began to behave oddly and that cycling the power did not restore their ability to function.  Fortunately, running Silhouette Studio and performing an operation seemed to fix things._

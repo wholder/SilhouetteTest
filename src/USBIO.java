@@ -1,6 +1,5 @@
 import org.usb4java.*;
 
-import javax.swing.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
@@ -17,7 +16,6 @@ class USBIO {
   private DeviceHandle      handle;
   private Context           context = new Context();
   private byte              iFace, outEnd, inEnd;
-  private JTextArea         debug;
 
   USBIO (short vendorId, short productId, byte iFace, byte outEnd, byte inEnd) {
     this.iFace = iFace;
@@ -53,32 +51,7 @@ class USBIO {
     throw new LibUsbException("Unable to open device", error);
   }
 
-  void setDebug (JTextArea debug) {
-    this.debug = debug;
-  }
-
-  JTextArea getDebug () {
-    return debug;
-  }
-
-  void debugPrint (String prefix, byte[] data) {
-    StringBuilder buf = new StringBuilder(prefix);
-    buf.append("\"");
-    for (byte cc : data) {
-      if (cc >= 0x20) {
-        buf.append((char) cc);
-      } else {
-        buf.append("\\u00");
-        buf.append(String.format("0x%02X", cc));
-      }
-    }
-    debug.append(buf.toString() + "\"\n");
-  }
-
   void send (byte[] data) {
-    if (debug != null) {
-      debugPrint("Snd: ", data);
-    }
     ByteBuffer outBuf = BufferUtils.allocateByteBuffer(data.length);
     outBuf.put(data);
     IntBuffer outNum = IntBuffer.allocate(1);
@@ -105,9 +78,6 @@ class USBIO {
           data[ii] = inBuf.get();
         }
         inBuf.clear();
-        if (debug != null) {
-          debugPrint("Rec: ", data);
-        }
         return data;
       }
     }
