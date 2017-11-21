@@ -13,7 +13,7 @@ I have another project called [**LaserCut**](https://github.com/wholder/LaserCut
 - [Usb4Java](http://usb4java.org) - Usb4Java Project Page
 - [JavaDocs](http://usb4java.org/apidocs/index.html) - Usb4Java JavaDocs
 ### Information Wanted
-If anyone owns a Mac and any of the other Silhouette cutters, such as the Cameo (original, V2 or V3), Portrait, etc., you can help me determine the USB I/O parameters for these other cutters using SilhouetteTest.  There is a [**Runnable JAR file**](https://github.com/wholder/SilhouetteTest/tree/master/out/artifacts/SilhouetteTest_jar) included in the checked in code that you can download.  Just double click the SilhouetteTest.jar file and it should start and display a window like the one shown near the top of this page.  Note: you may have to select the SilhouetteTest.jar file, right click and select "Open" the first time you run the file to satisfy Mac OS' security checks.  Then, select "Run Scan" and click the "RUN" button.  If it can identify a Silhouette-made device (vendor id == 0x0B4D), it will display text like this:
+If anyone owns a Mac and any of the other Silhouette cutters, such as the Cameo (original, V2 or V3), Portrait, etc., you can help me determine the USB I/O parameters for these other cutters using SilhouetteTest.  There is a [**Runnable JAR file**](https://github.com/wholder/SilhouetteTest/tree/master/out/artifacts/SilhouetteTest_jar) included in the checked in code that you can download.  Just double click the SilhouetteTest.jar file and it should start and display a window like the one shown near the top of this page.  Note: you may have to select the SilhouetteTest.jar file, right click and select "Open" the first time you run the file to satisfy Mac OS' security checks.  Then, select "Run Scan" and click the "RUN" button.  If it can identify a Silhouette-made device (vendor id == `0x0B4D`), it will display text like this:
 
       Bus: 000 Device 027: Vendor 0x0B4D, Product 0x112C
         Interface: 0
@@ -21,6 +21,10 @@ If anyone owns a Mac and any of the other Silhouette cutters, such as the Cameo 
           BLK add: 0x82 (IN)  pkt: 64
 
 Please copy all of this text, along with the full Model Name and Version of the Silhouette device tested, and post it in a comment in the Wiki Section listed above.
+### USB Communication with the Curio
+As shown above, the USB Endpoints for the Curio (and probably the other Silhouette devices) use 64 byte I/O buffers.  This means any code sending commands to the Curio must break up these commands into packets of 64 bytes, or less.  The simplest way to do this (and the method I used for SilhouetteTest)  is to send one command at a time and end each command with a `0x03` byte.  For commands that move the tool head, you can find out when the prior command has completed by sending a the two byte "status" command `0x1B 0x05` and then reading back a two byte response of `0xnn 0x03` where nn will be `0x31` (ASCII `'1'`) when the tool head is in motion and `0x30` (ASCII `'0'`) when the motion has stopped.  Note: in addition to the status command, there are additional commands that will send back other types of information from the Curio.  See the source code for more details. 
+
+Silhouette Studio seems to use a more sophisticated scheme where it stuffs commands into a 64 byte buffer (ending each command with a 0x03 byte) and then sends these out as the 64 byte buffer fills up.  This means that a single command may wind up being split between two different sequential packets.  There is probably a limit of how many bytes can be sent like this before the Silhouette Studio ahs to stop and wit for the commands it has sent to complete, but I have not investigated this in detail.
 ### Direct Command Mode
 If you enable the `"Snd Cmd"` checkbox, a text entry field will appear where you can type commands, such as `"M1000,1000"` (move to position 1000, 1000 where the values are in units of 508 units/inch) and send them directly to the selected Silhouette device by pressing ENTER.  The scrolling text area will print out the command you send along with any response received back, if any.  I added this a way to try and discover new commands through experimentation.  _**Caution**: I have observed that some of the commands I tried seemed to put the Curio into a state where some functions, such as tool up and down, stopped working, or began to behave oddly and that cycling the power did not restore their ability to function.  Fortunately, running Silhouette Studio and performing an operation seemed to fix things.  Note: all commands must be terminated by a value of 0x03 but this value is added automatically after you press ENTER.
 ### Basic Commands
@@ -29,6 +33,8 @@ Here is a list of most of the more useful commands needed to control the Silhoue
     H           - Home the tool head and tray (returns to the origin)
     M100,200    - Move to position 100,200
     D100,300    - Lower selected tool and draw or cut a line from current position to 100,300
+    G           - Causes the Curio to send back a String like "   100,   300,    20" where the first two values
+                  are the current position of the tool head and the 3rd value is *usually* the selected tool * 10.
     Jn          - Select tool n where 1 is the lefthand tool and 2 is the righthand tool
     !n          - Set the cut/draw speed to n where n varies from 1-10 and n * 10 is centimeters/second
     FXn         - Set the tool pressure when cutting where n varies from 1-33 and n * 7 is grams of force
