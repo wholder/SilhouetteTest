@@ -54,7 +54,6 @@ public class SilhouetteTest extends JFrame {
   private static DecimalFormat  df = new DecimalFormat("0.##");
   private static List<Cutter>   cutters = new LinkedList<>();
   private JTextArea             text = new JTextArea();
-  private JScrollPane           scroll;
   private JTextField            command;
   private JCheckBox             moveTest, drawTest, penTest, circleTest, showCmds, sendCmd;
   private JComboBox<Cutter>     select;
@@ -99,7 +98,7 @@ public class SilhouetteTest extends JFrame {
     cutters.add(new Cutter("Run Scan"));
   }
 
-  public static void main (String[] args) throws Exception {
+  public static void main (String[] args) {
     new SilhouetteTest();
   }
 
@@ -252,7 +251,7 @@ public class SilhouetteTest extends JFrame {
     text.setRows(30);
     text.setFont(new Font("Monaco", Font.PLAIN, 12));
     text.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-    scroll = new JScrollPane(text, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+    JScrollPane scroll = new JScrollPane(text, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
     add(scroll, BorderLayout.CENTER);
     JPanel controls = new JPanel(new FlowLayout());
     command = new JTextField();
@@ -275,7 +274,7 @@ public class SilhouetteTest extends JFrame {
         cardLayout.first(cards);
       }
     });
-    select = new JComboBox<>(cutters.toArray(new Cutter[cutters.size()]));
+    select = new JComboBox<>(cutters.toArray(new Cutter[0]));
     controls.add(select);
     JButton run = new JButton("RUN");
     run.addActionListener(e -> startTests());
@@ -432,7 +431,7 @@ public class SilhouetteTest extends JFrame {
     byte[] data = usb.receive();
     if (data.length > 0) {
       String rsp = (new String(data)).substring(0, data.length - 1);
-      if (data.length > 0 && (showCmds.isSelected() || sendCmd.isSelected())) {
+      if (showCmds.isSelected() || sendCmd.isSelected()) {
         appendLine("Rec: \"" + rsp + "\"");
       }
       return rsp;
