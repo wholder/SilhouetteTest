@@ -181,7 +181,7 @@ public class SilhouetteTest extends JFrame {
             doWait();
           }
         }
-        // Used to try out experimental command seqqueces
+        // Used to try out experimental command sequences
         if (penTest.isSelected()) {
           // Tests how a moveTo() followed by a drawTo() at the same location results in a pen down/up
           appendLine("Do Pen Up/Down Test");
