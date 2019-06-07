@@ -316,7 +316,7 @@ public class SilhouetteTest extends JFrame {
    * @param speed parameter range 1 - 10
    */
   private void setDrawSpeed (int speed) {
-    speed = Math.min(Math.min(speed, 1), 10);               // Range is 1-10
+    speed = Math.min(Math.max(speed, 1), 10);               // Range is 1-10
     sendCmd("!" + speed);
   }
 
@@ -325,7 +325,7 @@ public class SilhouetteTest extends JFrame {
    * @param pres parameter range 1 - 33
    */
   private void setPressure (int pres) {
-    pres = Math.min(Math.min(pres, 1), 33);                 // Range is 1-33
+    pres = Math.min(Math.max(pres, 1), 33);                 // Range is 1-33
     sendCmd("FX" + pres);
   }
 
