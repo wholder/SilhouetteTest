@@ -316,7 +316,7 @@ public class SilhouetteTest extends JFrame {
    * @param speed parameter range 1 - 10
    */
   private void setDrawSpeed (int speed) {
-    speed = Math.max(Math.min(speed, 1), 10);               // Range is 1-10
+    speed = Math.min(Math.min(speed, 1), 10);               // Range is 1-10
     sendCmd("!" + speed);
   }
 
@@ -325,7 +325,7 @@ public class SilhouetteTest extends JFrame {
    * @param pres parameter range 1 - 33
    */
   private void setPressure (int pres) {
-    pres = Math.max(Math.min(pres, 1), 33);                 // Range is 1-33
+    pres = Math.min(Math.min(pres, 1), 33);                 // Range is 1-33
     sendCmd("FX" + pres);
   }
 
@@ -370,7 +370,7 @@ public class SilhouetteTest extends JFrame {
   }
 
   /**
-   * Draw a bezier curve to Silhouette device using 4 points:
+   * Draw a 4 point Bezier curve to Silhouette device
    *  pnts[0] is starting point
    *  pnts[1] is first control point
    *  pnts[2] is second control points
@@ -384,6 +384,20 @@ public class SilhouetteTest extends JFrame {
     formatCoords(pnts[1]) + "," +
     formatCoords(pnts[2]) + "," +
     formatCoords(pnts[3]));
+  }
+
+  /**
+   * Takes 3 point, quadratic curve and returns 4 point cubic (Bezier) curve
+   * @param quad 3 point, quadratic curve
+   * @return 4 point cubic (Bezier) curve
+   */
+  private static Point2D.Double[] quadToCubic (Point2D.Double[] quad) {
+    return new Point2D.Double[]  {
+        new Point2D.Double(quad[0].x, quad[0].y),
+        new Point2D.Double(quad[0].x + (2.0 * (quad[1].x - quad[0].x) / 3.0), quad[0].y + (2.0 * (quad[1].y - quad[0].y) / 3.0)),
+        new Point2D.Double(quad[2].x + (2.0 * (quad[1].x - quad[2].x) / 3.0), quad[2].y + (2.0 * (quad[1].y - quad[2].y) / 3.0)),
+        new Point2D.Double(quad[2].x, quad[2].y)
+    };
   }
 
   /**
